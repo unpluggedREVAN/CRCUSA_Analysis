@@ -47,36 +47,68 @@ export interface FirestoreCompany {
   location: string;
   address: string;
   description: string;
+  latitude?: number;
+  longitude?: number;
   createdAt: string;
   updatedAt: string;
   owner: string;
   initials: string;
 }
 
-export interface Campaign {
+export type RecipientStatus = 'sin_contestar' | 'en_espera' | 'aceptado' | 'rechazado';
+export type RecipientType = 'contact' | 'affiliate' | 'sponsor';
+
+export interface CampaignRecipient {
   id: string;
   name: string;
+  email: string;
+  type: RecipientType;
+  status: RecipientStatus;
+}
+
+export interface Campaign {
+  id: string;
+  title: string;
   description: string;
-  status: 'draft' | 'active' | 'paused' | 'completed';
-  startDate: Date;
-  endDate: Date;
-  targetAudience: string;
-  goals: string;
-  createdAt: Date;
-  updatedAt: Date;
+  startDate: string;
+  endDate: string;
+  recipients: CampaignRecipient[];
+  createdAt: string;
+  updatedAt: string;
+  owner: string;
+}
+
+export interface Connection {
+  id: string;
+  fromNoteId: string;
+  toNoteId: string;
 }
 
 export interface Note {
   id: string;
   title: string;
   content: string;
+  owner: string;
   x: number;
   y: number;
   width: number;
   height: number;
   color: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FirestoreNote {
+  title: string;
+  content: string;
+  owner: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FirestoreAffiliate {
@@ -206,7 +238,7 @@ export const campaignsService = {
     const querySnapshot = await getDocs(collection(db, 'campaigns'));
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
-      ...convertTimestamp(doc.data())
+      ...doc.data()
     } as Campaign));
   },
 
@@ -214,30 +246,42 @@ export const campaignsService = {
     const docRef = doc(db, 'campaigns', id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...convertTimestamp(docSnap.data()) } as Campaign;
+      return { id: docSnap.id, ...docSnap.data() } as Campaign;
     }
     return null;
   },
 
-  async create(campaign: Omit<Campaign, 'id'>): Promise<string> {
+  async create(campaign: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const now = new Date().toISOString();
     const docRef = await addDoc(collection(db, 'campaigns'), {
       ...campaign,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
+      createdAt: now,
+      updatedAt: now
     });
     return docRef.id;
   },
 
-  async update(id: string, campaign: Partial<Campaign>): Promise<void> {
+  async update(id: string, campaign: Partial<Omit<Campaign, 'id' | 'createdAt'>>): Promise<void> {
     const docRef = doc(db, 'campaigns', id);
     await updateDoc(docRef, {
       ...campaign,
-      updatedAt: Timestamp.now()
+      updatedAt: new Date().toISOString()
     });
   },
 
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(db, 'campaigns', id));
+  },
+
+  async updateRecipientStatus(campaignId: string, recipientId: string, status: RecipientStatus): Promise<void> {
+    const campaign = await this.getById(campaignId);
+    if (!campaign) return;
+
+    const updatedRecipients = campaign.recipients.map(recipient =>
+      recipient.id === recipientId ? { ...recipient, status } : recipient
+    );
+
+    await this.update(campaignId, { recipients: updatedRecipients });
   }
 };
 
@@ -259,25 +303,63 @@ export const notesService = {
     return null;
   },
 
-  async create(note: Omit<Note, 'id'>): Promise<string> {
+  async create(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const now = new Date().toISOString();
     const docRef = await addDoc(collection(db, 'notes'), {
       ...note,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
+      createdAt: now,
+      updatedAt: now
     });
     return docRef.id;
   },
 
-  async update(id: string, note: Partial<Note>): Promise<void> {
+  async update(id: string, note: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
     const docRef = doc(db, 'notes', id);
     await updateDoc(docRef, {
       ...note,
-      updatedAt: Timestamp.now()
+      updatedAt: new Date().toISOString()
     });
   },
 
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(db, 'notes', id));
+  }
+};
+
+export const connectionsService = {
+  async getAll(): Promise<Connection[]> {
+    const querySnapshot = await getDocs(collection(db, 'connections'));
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Connection));
+  },
+
+  async create(connection: Omit<Connection, 'id'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'connections'), connection);
+    return docRef.id;
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'connections', id));
+  },
+
+  async deleteByNoteId(noteId: string): Promise<void> {
+    const q = query(
+      collection(db, 'connections'),
+      where('fromNoteId', '==', noteId)
+    );
+    const querySnapshot = await getDocs(q);
+    const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+
+    const q2 = query(
+      collection(db, 'connections'),
+      where('toNoteId', '==', noteId)
+    );
+    const querySnapshot2 = await getDocs(q2);
+    const deletePromises2 = querySnapshot2.docs.map(doc => deleteDoc(doc.ref));
+
+    await Promise.all([...deletePromises, ...deletePromises2]);
   }
 };
 

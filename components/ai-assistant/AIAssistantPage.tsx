@@ -1,280 +1,209 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Bot, 
-  Send, 
-  Sparkles, 
-  BarChart3, 
-  Users, 
-  Building2, 
-  Award, 
-  Mail,
-  StickyNote,
-  TrendingUp,
-  MessageSquare,
-  Loader2
+import { useData } from '@/contexts/DataContext';
+import { sendMessageToGemini, buildContextFromData } from '@/lib/gemini-service';
+import {
+  Bot,
+  Send,
+  User,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 
-// Mock conversation data
-const mockConversation = [
-  {
-    id: '1',
-    type: 'user',
-    message: '¿Cuántos leads nuevos entraron este mes?',
-    timestamp: '10:30 AM'
-  },
-  {
-    id: '2',
-    type: 'ai',
-    message: 'Este mes han ingresado 6 leads nuevos al sistema. La mayoría provienen de origen Web (4) y Referencia (2). El sector predominante es Restaurante con 5 leads.',
-    timestamp: '10:30 AM',
-    data: {
-      total: 6,
-      breakdown: [
-        { label: 'Web', value: 4 },
-        { label: 'Referencia', value: 2 }
-      ]
-    }
-  },
-  {
-    id: '3',
-    type: 'user',
-    message: '¿Qué campañas tuvieron mayor tasa de apertura?',
-    timestamp: '10:32 AM'
-  },
-  {
-    id: '4',
-    type: 'ai',
-    message: 'La campaña "Agradecimiento Patrocinadores 2024" tuvo la mayor tasa de apertura con 91.7% (11 de 12 enviados). Le sigue "Bienvenida Nuevos Afiliados Q4 2024" con 71.1% (32 de 45 enviados).',
-    timestamp: '10:32 AM',
-    data: {
-      campaigns: [
-        { name: 'Agradecimiento Patrocinadores 2024', rate: '91.7%' },
-        { name: 'Bienvenida Nuevos Afiliados Q4 2024', rate: '71.1%' }
-      ]
-    }
-  }
-];
-
-const suggestedQueries = [
-  "¿Cuál es el sector con más afiliados activos?",
-  "¿Cuántas empresas tenemos registradas por tamaño?",
-  "¿Qué patrocinadores están por vencer su período?",
-  "¿Cuáles son las notas más recientes del canvas?",
-  "¿Qué leads tienen mayor probabilidad de conversión?"
-];
+interface Message {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
 
 export function AIAssistantPage() {
-  const [query, setQuery] = useState('');
+  const { contacts, companies, affiliates, sponsors, campaigns } = useData();
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      type: 'assistant',
+      content: '¡Hola! Soy tu asistente de IA. Puedo ayudarte a analizar los datos de tu CRM. Pregúntame sobre contactos, empresas, afiliados, patrocinadores o campañas.',
+      timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    }
+  ]);
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [conversation, setConversation] = useState(mockConversation);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSendQuery = async () => {
-    if (!query.trim()) return;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-    setIsLoading(true);
-    
-    // Add user message
-    const userMessage = {
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMessage: Message = {
       id: Date.now().toString(),
-      type: 'user' as const,
-      message: query,
+      type: 'user',
+      content: input,
       timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
     };
-    
-    setConversation(prev => [...prev, userMessage]);
-    setQuery('');
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'ai' as const,
-        message: 'Esta funcionalidad está en desarrollo. Pronto podrás hacer consultas en tiempo real sobre todos los datos del sistema.',
-        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-      };
-      
-      setConversation(prev => [...prev, aiMessage]);
-      setIsLoading(false);
-    }, 2000);
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    const context = buildContextFromData({
+      contacts,
+      companies,
+      affiliates,
+      sponsors,
+      campaigns
+    });
+
+    const response = await sendMessageToGemini(input, context);
+
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'assistant',
+      content: response.error || response.message || 'No pude procesar tu solicitud. Por favor, intenta de nuevo.',
+      timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+    setIsLoading(false);
   };
 
-  const handleSuggestedQuery = (suggestedQuery: string) => {
-    setQuery(suggestedQuery);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
+
+  const suggestedQuestions = [
+    "¿Cuántos contactos tenemos en total?",
+    "¿Cuál es el sector con más empresas?",
+    "¿Cuántos afiliados activos tenemos?",
+    "¿Qué campañas están activas?",
+    "Muéstrame un resumen del CRM"
+  ];
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 overflow-hidden">
-        <PageHeader 
+      <div className="flex-1 flex flex-col">
+        <PageHeader
           title="Asistente IA"
-          description="Consulta inteligente de datos empresariales en lenguaje natural."
+          description="Consulta inteligente de datos empresariales."
         />
-        
-        <div className="flex h-full">
-          {/* Main Chat Area */}
-          <div className="flex-1 flex flex-col">
-            {/* Conversation Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {conversation.map((message) => (
-                <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-3xl ${message.type === 'user' ? 'order-2' : 'order-1'}`}>
-                    <div className={`flex items-start space-x-3 ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        message.type === 'user' 
-                          ? 'bg-teal-100 text-teal-800' 
-                          : 'bg-purple-100 text-purple-800'
+
+        <div className="flex-1 flex flex-col overflow-hidden bg-white">
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-4xl mx-auto space-y-6">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`flex items-start gap-3 max-w-3xl ${message.type === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      message.type === 'user'
+                        ? 'bg-teal-100 text-teal-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {message.type === 'user' ? (
+                        <User className="h-5 w-5" />
+                      ) : (
+                        <Bot className="h-5 w-5" />
+                      )}
+                    </div>
+
+                    <div className={`rounded-2xl px-4 py-3 ${
+                      message.type === 'user'
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-gray-50 border border-gray-200'
+                    }`}>
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      <p className={`text-xs mt-2 ${
+                        message.type === 'user' ? 'text-teal-100' : 'text-gray-500'
                       }`}>
-                        {message.type === 'user' ? (
-                          <Users className="h-4 w-4" />
-                        ) : (
-                          <Bot className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div className={`rounded-lg p-4 ${
-                        message.type === 'user'
-                          ? 'bg-teal-600 text-white'
-                          : 'bg-white border shadow-sm'
-                      }`}>
-                        <p className="text-sm">{message.message}</p>
-                        {message.data && (
-                          <div className="mt-3 space-y-2">
-                            {message.data.breakdown && (
-                              <div className="flex space-x-4">
-                                {message.data.breakdown.map((item, index) => (
-                                  <Badge key={index} className="bg-blue-100 text-blue-800">
-                                    {item.label}: {item.value}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                            {message.data.campaigns && (
-                              <div className="space-y-1">
-                                {message.data.campaigns.map((campaign, index) => (
-                                  <div key={index} className="flex justify-between items-center text-xs bg-gray-50 p-2 rounded">
-                                    <span>{campaign.name}</span>
-                                    <Badge className="bg-green-100 text-green-800">{campaign.rate}</Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <p className="text-xs opacity-70 mt-2">{message.timestamp}</p>
-                      </div>
+                        {message.timestamp}
+                      </p>
                     </div>
                   </div>
                 </div>
               ))}
-              
+
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-purple-100 text-purple-800 rounded-full flex items-center justify-center">
-                      <Bot className="h-4 w-4" />
+                  <div className="flex items-start gap-3 max-w-3xl">
+                    <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-5 w-5" />
                     </div>
-                    <div className="bg-white border shadow-sm rounded-lg p-4">
-                      <div className="flex items-center space-x-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+                    <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                         <span className="text-sm text-gray-600">Analizando datos...</span>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Input Area */}
-            <div className="border-t bg-white p-6">
-              <div className="flex space-x-4">
-                <div className="flex-1">
-                  <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Pregunta sobre leads, empresas, afiliados, patrocinadores o campañas..."
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendQuery()}
-                    disabled={isLoading}
-                  />
-                </div>
-                <Button 
-                  onClick={handleSendQuery}
-                  disabled={!query.trim() || isLoading}
-                  className="bg-teal-600 hover:bg-teal-700"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+              <div ref={messagesEndRef} />
             </div>
           </div>
 
-          {/* Input Area */}
-          <div className="border-t bg-white p-6">
-            <div className="flex space-x-4">
-              <div className="flex-1">
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Pregunta sobre leads, empresas, afiliados, patrocinadores o campañas..."
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendQuery()}
-                  disabled={isLoading}
-                />
+          {messages.length === 1 && (
+            <div className="px-6 pb-4">
+              <div className="max-w-4xl mx-auto bg-gray-50 rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="h-4 w-4 text-teal-600" />
+                  <p className="text-sm font-medium text-gray-700">Preguntas sugeridas:</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedQuestions.map((question, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setInput(question)}
+                      className="text-xs px-3 py-2 bg-white hover:bg-gray-100 border border-gray-200 rounded-full transition-colors"
+                      disabled={isLoading}
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <Button 
-                onClick={handleSendQuery}
-                disabled={!query.trim() || isLoading}
+            </div>
+          )}
+
+          <div className="border-t bg-white px-6 py-4">
+            <div className="flex gap-3 max-w-4xl mx-auto">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Escribe tu pregunta aquí..."
+                disabled={isLoading}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!input.trim() || isLoading}
                 className="bg-teal-600 hover:bg-teal-700"
               >
-                <Send className="h-4 w-4" />
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
-            </div>
-          </div>
-          {/* Sidebar */}
-          <div className="w-80 border-l bg-white p-6 space-y-6">
-            
-
-            {/* Suggested Queries */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center">
-                  <MessageSquare className="h-4 w-4 mr-2 text-teal-600" />
-                  Consultas Sugeridas
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Haz clic para usar estas consultas
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {suggestedQueries.map((suggestedQuery, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSuggestedQuery(suggestedQuery)}
-                    className="w-full text-left p-3 text-xs bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                    disabled={isLoading}
-                  >
-                    {suggestedQuery}
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-
-
-
-            {/* Development Notice */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                  <TrendingUp className="h-3 w-3 text-blue-600" />
-                </div>
-                
-              </div>
             </div>
           </div>
         </div>

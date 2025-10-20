@@ -111,19 +111,19 @@ export function ContactsPage() {
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Todos los estados" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los estados</SelectItem>
                 <SelectItem value="Primer contacto">Primer contacto</SelectItem>
-                <SelectItem value="Cerrado">Cerrado</SelectItem>
                 <SelectItem value="Segundo contacto">Segundo contacto</SelectItem>
                 <SelectItem value="Negociación">Negociación</SelectItem>
+                <SelectItem value="Cerrado">Cerrado</SelectItem>
               </SelectContent>
             </Select>
             <Select value={originFilter} onValueChange={setOriginFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Todos los orígenes" />
               </SelectTrigger>
               <SelectContent>
@@ -134,10 +134,6 @@ export function ContactsPage() {
                 <SelectItem value="Evento">Evento</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Más Filtros
-            </Button>
           </div>
 
           {/* Stats */}

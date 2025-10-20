@@ -171,7 +171,7 @@ export function CompanyDetailPage({ companyId }: CompanyDetailPageProps) {
               {/* Location */}
               <div className="bg-white p-6 rounded-lg shadow-sm border">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">Ubicación</h2>
-                
+
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
                     <MapPin className="h-5 w-5 text-gray-400" />
@@ -181,10 +181,30 @@ export function CompanyDetailPage({ companyId }: CompanyDetailPageProps) {
                     <Building2 className="h-5 w-5 text-gray-400" />
                     <span>{company.address}</span>
                   </div>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    <Map className="h-4 w-4 mr-2" />
-                    Ver en Mapa
-                  </Button>
+
+                  {company.latitude && company.longitude ? (
+                    <div className="mt-4 border rounded-lg overflow-hidden">
+                      <iframe
+                        width="100%"
+                        height="300"
+                        frameBorder="0"
+                        scrolling="no"
+                        marginHeight={0}
+                        marginWidth={0}
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${company.longitude-0.01},${company.latitude-0.01},${company.longitude+0.01},${company.latitude+0.01}&layer=mapnik&marker=${company.latitude},${company.longitude}`}
+                        title="Mapa de ubicación"
+                      />
+                      <div className="p-2 bg-gray-50 text-xs text-gray-600 text-center">
+                        Lat: {company.latitude.toFixed(6)}, Lng: {company.longitude.toFixed(6)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg text-center text-sm text-gray-600">
+                      <MapPin className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p>No hay coordenadas registradas</p>
+                      <p className="text-xs mt-1">Edita la empresa para agregar ubicación en el mapa</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

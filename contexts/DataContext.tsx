@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { contactsService, companiesService, affiliatesService, sponsorsService } from '@/lib/firestore-service';
+import { contactsService, companiesService, affiliatesService, sponsorsService, campaignsService, Campaign, CampaignRecipient, RecipientStatus } from '@/lib/firestore-service';
 
 export interface Contact {
   id: string;
@@ -37,6 +37,8 @@ export interface Company {
   location: string;
   address: string;
   description: string;
+  latitude?: number;
+  longitude?: number;
   createdAt: string;
   updatedAt: string;
   owner: string;
@@ -88,6 +90,7 @@ interface DataContextType {
   companies: Company[];
   affiliates: Affiliate[];
   sponsors: Sponsor[];
+  campaigns: Campaign[];
   loading: boolean;
   addContact: (contact: Omit<Contact, 'id' | 'createdAt' | 'updatedAt' | 'initials'>) => Promise<void>;
   updateContact: (id: string, contact: Partial<Contact>) => Promise<void>;
@@ -110,6 +113,12 @@ interface DataContextType {
   addSponsor: (sponsor: Omit<Sponsor, 'id' | 'createdAt' | 'updatedAt' | 'initials'>) => Promise<void>;
   updateSponsor: (id: string, sponsor: Partial<Sponsor>) => Promise<void>;
   deleteSponsor: (id: string) => Promise<void>;
+  addCampaign: (campaign: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateCampaign: (id: string, campaign: Partial<Omit<Campaign, 'id' | 'createdAt'>>) => Promise<void>;
+  deleteCampaign: (id: string) => Promise<void>;
+  updateRecipientStatus: (campaignId: string, recipientId: string, status: RecipientStatus) => Promise<void>;
+  getCampaignById: (id: string) => Campaign | undefined;
+  cleanupDuplicates: () => Promise<{ contacts: number; companies: number; affiliates: number; sponsors: number }>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -353,6 +362,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
 
@@ -363,11 +373,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [contactsData, companiesData, affiliatesData, sponsorsData] = await Promise.all([
+      const [contactsData, companiesData, affiliatesData, sponsorsData, campaignsData] = await Promise.all([
         contactsService.getAll(),
         companiesService.getAll(),
         affiliatesService.getAll(),
-        sponsorsService.getAll()
+        sponsorsService.getAll(),
+        campaignsService.getAll()
       ]);
 
       if (contactsData.length === 0 && companiesData.length === 0 && !initialized) {
@@ -378,6 +389,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setCompanies(companiesData.map(formatCompany));
         setAffiliates(affiliatesData.map(formatAffiliate));
         setSponsors(sponsorsData.map(formatSponsor));
+        setCampaigns(campaignsData);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -436,6 +448,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addContact = async (contactData: Omit<Contact, 'id' | 'createdAt' | 'updatedAt' | 'initials'>) => {
     try {
+      const duplicateByEmail = contacts.find(c => c.email.toLowerCase() === contactData.email.toLowerCase());
+      if (duplicateByEmail) {
+        throw new Error(`Ya existe un contacto con el email: ${contactData.email}`);
+      }
+
+      const duplicateByPhone = contacts.find(c => c.phone === contactData.phone && contactData.phone.trim() !== '');
+      if (duplicateByPhone) {
+        throw new Error(`Ya existe un contacto con el teléfono: ${contactData.phone}`);
+      }
+
       const now = new Date().toLocaleDateString('es-ES');
       const newContact = {
         ...contactData,
@@ -453,6 +475,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateContact = async (id: string, contactData: Partial<Contact>) => {
     try {
+      if (contactData.email) {
+        const duplicateByEmail = contacts.find(c => c.id !== id && c.email.toLowerCase() === contactData.email!.toLowerCase());
+        if (duplicateByEmail) {
+          throw new Error(`Ya existe un contacto con el email: ${contactData.email}`);
+        }
+      }
+
+      if (contactData.phone && contactData.phone.trim() !== '') {
+        const duplicateByPhone = contacts.find(c => c.id !== id && c.phone === contactData.phone);
+        if (duplicateByPhone) {
+          throw new Error(`Ya existe un contacto con el teléfono: ${contactData.phone}`);
+        }
+      }
+
       const updates: any = {
         ...contactData,
         updatedAt: new Date().toLocaleDateString('es-ES')
@@ -480,6 +516,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addCompany = async (companyData: Omit<Company, 'id' | 'createdAt' | 'updatedAt' | 'initials'>) => {
     try {
+      const duplicateByEmail = companies.find(c => c.email.toLowerCase() === companyData.email.toLowerCase());
+      if (duplicateByEmail) {
+        throw new Error(`Ya existe una compañía con el email: ${companyData.email}`);
+      }
+
+      const duplicateByName = companies.find(c => c.name.toLowerCase() === companyData.name.toLowerCase());
+      if (duplicateByName) {
+        throw new Error(`Ya existe una compañía con el nombre: ${companyData.name}`);
+      }
+
       const now = new Date().toLocaleDateString('es-ES');
       const newCompany = {
         ...companyData,
@@ -497,6 +543,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateCompany = async (id: string, companyData: Partial<Company>) => {
     try {
+      if (companyData.email) {
+        const duplicateByEmail = companies.find(c => c.id !== id && c.email.toLowerCase() === companyData.email!.toLowerCase());
+        if (duplicateByEmail) {
+          throw new Error(`Ya existe una compañía con el email: ${companyData.email}`);
+        }
+      }
+
+      if (companyData.name) {
+        const duplicateByName = companies.find(c => c.id !== id && c.name.toLowerCase() === companyData.name!.toLowerCase());
+        if (duplicateByName) {
+          throw new Error(`Ya existe una compañía con el nombre: ${companyData.name}`);
+        }
+      }
+
       const updates: any = {
         ...companyData,
         updatedAt: new Date().toLocaleDateString('es-ES')
@@ -682,6 +742,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addAffiliate = async (affiliateData: Omit<Affiliate, 'id' | 'createdAt' | 'updatedAt' | 'initials'>) => {
     try {
+      const duplicateByEmail = affiliates.find(a => a.email.toLowerCase() === affiliateData.email.toLowerCase());
+      if (duplicateByEmail) {
+        throw new Error(`Ya existe un afiliado con el email: ${affiliateData.email}`);
+      }
+
+      const duplicateByPhone = affiliates.find(a => a.phone === affiliateData.phone && affiliateData.phone.trim() !== '');
+      if (duplicateByPhone) {
+        throw new Error(`Ya existe un afiliado con el teléfono: ${affiliateData.phone}`);
+      }
+
       const now = new Date().toLocaleDateString('es-ES');
       const newAffiliate = {
         ...affiliateData,
@@ -699,6 +769,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateAffiliate = async (id: string, affiliateData: Partial<Affiliate>) => {
     try {
+      if (affiliateData.email) {
+        const duplicateByEmail = affiliates.find(a => a.id !== id && a.email.toLowerCase() === affiliateData.email!.toLowerCase());
+        if (duplicateByEmail) {
+          throw new Error(`Ya existe un afiliado con el email: ${affiliateData.email}`);
+        }
+      }
+
+      if (affiliateData.phone && affiliateData.phone.trim() !== '') {
+        const duplicateByPhone = affiliates.find(a => a.id !== id && a.phone === affiliateData.phone);
+        if (duplicateByPhone) {
+          throw new Error(`Ya existe un afiliado con el teléfono: ${affiliateData.phone}`);
+        }
+      }
+
       const updates: any = {
         ...affiliateData,
         updatedAt: new Date().toLocaleDateString('es-ES')
@@ -792,6 +876,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addSponsor = async (sponsorData: Omit<Sponsor, 'id' | 'createdAt' | 'updatedAt' | 'initials'>) => {
     try {
+      const duplicateByEmail = sponsors.find(s => s.email.toLowerCase() === sponsorData.email.toLowerCase());
+      if (duplicateByEmail) {
+        throw new Error(`Ya existe un patrocinador con el email: ${sponsorData.email}`);
+      }
+
+      const duplicateByPhone = sponsors.find(s => s.phone === sponsorData.phone && sponsorData.phone.trim() !== '');
+      if (duplicateByPhone) {
+        throw new Error(`Ya existe un patrocinador con el teléfono: ${sponsorData.phone}`);
+      }
+
       const now = new Date().toLocaleDateString('es-ES');
       const newSponsor = {
         ...sponsorData,
@@ -809,6 +903,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateSponsor = async (id: string, sponsorData: Partial<Sponsor>) => {
     try {
+      if (sponsorData.email) {
+        const duplicateByEmail = sponsors.find(s => s.id !== id && s.email.toLowerCase() === sponsorData.email!.toLowerCase());
+        if (duplicateByEmail) {
+          throw new Error(`Ya existe un patrocinador con el email: ${sponsorData.email}`);
+        }
+      }
+
+      if (sponsorData.phone && sponsorData.phone.trim() !== '') {
+        const duplicateByPhone = sponsors.find(s => s.id !== id && s.phone === sponsorData.phone);
+        if (duplicateByPhone) {
+          throw new Error(`Ya existe un patrocinador con el teléfono: ${sponsorData.phone}`);
+        }
+      }
+
       const updates: any = {
         ...sponsorData,
         updatedAt: new Date().toLocaleDateString('es-ES')
@@ -834,11 +942,177 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addCampaign = async (campaignData: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      await campaignsService.create(campaignData);
+      await loadData();
+    } catch (error) {
+      console.error('Error adding campaign:', error);
+      throw error;
+    }
+  };
+
+  const updateCampaign = async (id: string, campaignData: Partial<Omit<Campaign, 'id' | 'createdAt'>>) => {
+    try {
+      await campaignsService.update(id, campaignData);
+      await loadData();
+    } catch (error) {
+      console.error('Error updating campaign:', error);
+      throw error;
+    }
+  };
+
+  const deleteCampaign = async (id: string) => {
+    try {
+      await campaignsService.delete(id);
+      await loadData();
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      throw error;
+    }
+  };
+
+  const updateRecipientStatus = async (campaignId: string, recipientId: string, status: RecipientStatus) => {
+    try {
+      await campaignsService.updateRecipientStatus(campaignId, recipientId, status);
+      await loadData();
+    } catch (error) {
+      console.error('Error updating recipient status:', error);
+      throw error;
+    }
+  };
+
+  const getCampaignById = (id: string): Campaign | undefined => {
+    return campaigns.find(campaign => campaign.id === id);
+  };
+
+  const cleanupDuplicates = async (): Promise<{ contacts: number; companies: number; affiliates: number; sponsors: number }> => {
+    try {
+      let contactsRemoved = 0;
+      let companiesRemoved = 0;
+      let affiliatesRemoved = 0;
+      let sponsorsRemoved = 0;
+
+      const parseDate = (dateStr: string): number => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+        }
+        return new Date(dateStr).getTime();
+      };
+
+      const emailMapContacts = new Map<string, any[]>();
+      contacts.forEach(c => {
+        const key = c.email.toLowerCase();
+        if (!emailMapContacts.has(key)) emailMapContacts.set(key, []);
+        emailMapContacts.get(key)!.push(c);
+      });
+
+      for (const duplicates of Array.from(emailMapContacts.values())) {
+        if (duplicates.length > 1) {
+          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
+          for (let i = 1; i < duplicates.length; i++) {
+            await contactsService.delete(duplicates[i].id);
+            contactsRemoved++;
+          }
+        }
+      }
+
+      const emailMapCompanies = new Map<string, any[]>();
+      const nameMapCompanies = new Map<string, any[]>();
+
+      companies.forEach(c => {
+        const emailKey = c.email.toLowerCase();
+        if (!emailMapCompanies.has(emailKey)) emailMapCompanies.set(emailKey, []);
+        emailMapCompanies.get(emailKey)!.push(c);
+
+        const nameKey = c.name.toLowerCase();
+        if (!nameMapCompanies.has(nameKey)) nameMapCompanies.set(nameKey, []);
+        nameMapCompanies.get(nameKey)!.push(c);
+      });
+
+      const processedCompanyIds = new Set<string>();
+
+      for (const duplicates of Array.from(emailMapCompanies.values())) {
+        if (duplicates.length > 1) {
+          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
+          for (let i = 1; i < duplicates.length; i++) {
+            if (!processedCompanyIds.has(duplicates[i].id)) {
+              await companiesService.delete(duplicates[i].id);
+              processedCompanyIds.add(duplicates[i].id);
+              companiesRemoved++;
+            }
+          }
+        }
+      }
+
+      for (const duplicates of Array.from(nameMapCompanies.values())) {
+        if (duplicates.length > 1) {
+          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
+          for (let i = 1; i < duplicates.length; i++) {
+            if (!processedCompanyIds.has(duplicates[i].id)) {
+              await companiesService.delete(duplicates[i].id);
+              processedCompanyIds.add(duplicates[i].id);
+              companiesRemoved++;
+            }
+          }
+        }
+      }
+
+      const emailMapAffiliates = new Map<string, any[]>();
+      affiliates.forEach(a => {
+        const key = a.email.toLowerCase();
+        if (!emailMapAffiliates.has(key)) emailMapAffiliates.set(key, []);
+        emailMapAffiliates.get(key)!.push(a);
+      });
+
+      for (const duplicates of Array.from(emailMapAffiliates.values())) {
+        if (duplicates.length > 1) {
+          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
+          for (let i = 1; i < duplicates.length; i++) {
+            await affiliatesService.delete(duplicates[i].id);
+            affiliatesRemoved++;
+          }
+        }
+      }
+
+      const emailMapSponsors = new Map<string, any[]>();
+      sponsors.forEach(s => {
+        const key = s.email.toLowerCase();
+        if (!emailMapSponsors.has(key)) emailMapSponsors.set(key, []);
+        emailMapSponsors.get(key)!.push(s);
+      });
+
+      for (const duplicates of Array.from(emailMapSponsors.values())) {
+        if (duplicates.length > 1) {
+          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
+          for (let i = 1; i < duplicates.length; i++) {
+            await sponsorsService.delete(duplicates[i].id);
+            sponsorsRemoved++;
+          }
+        }
+      }
+
+      await loadData();
+
+      return {
+        contacts: contactsRemoved,
+        companies: companiesRemoved,
+        affiliates: affiliatesRemoved,
+        sponsors: sponsorsRemoved
+      };
+    } catch (error) {
+      console.error('Error cleaning duplicates:', error);
+      throw error;
+    }
+  };
+
   const value = {
     contacts,
     companies,
     affiliates,
     sponsors,
+    campaigns,
     loading,
     addContact,
     updateContact,
@@ -860,7 +1134,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     convertContactToSponsor,
     addSponsor,
     updateSponsor,
-    deleteSponsor
+    deleteSponsor,
+    addCampaign,
+    updateCampaign,
+    deleteCampaign,
+    updateRecipientStatus,
+    getCampaignById,
+    cleanupDuplicates
   };
 
   return (

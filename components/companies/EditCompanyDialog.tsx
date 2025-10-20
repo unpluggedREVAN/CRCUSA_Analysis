@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { MapSelector } from './MapSelector';
 import { Loader2 } from 'lucide-react';
 
 interface EditCompanyDialogProps {
@@ -29,7 +30,9 @@ export function EditCompanyDialog({ open, onOpenChange, company }: EditCompanyDi
     size: 'Pequeña (1-10)',
     location: '',
     address: '',
-    description: ''
+    description: '',
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined
   });
 
   useEffect(() => {
@@ -44,7 +47,9 @@ export function EditCompanyDialog({ open, onOpenChange, company }: EditCompanyDi
         size: company.size,
         location: company.location,
         address: company.address,
-        description: company.description
+        description: company.description,
+        latitude: company.latitude,
+        longitude: company.longitude
       });
     }
   }, [company]);
@@ -58,7 +63,9 @@ export function EditCompanyDialog({ open, onOpenChange, company }: EditCompanyDi
     try {
       await updateCompany(company.id, {
         ...formData,
-        tradeName: formData.tradeName || formData.name
+        tradeName: formData.tradeName || formData.name,
+        latitude: formData.latitude,
+        longitude: formData.longitude
       });
 
       onOpenChange(false);
@@ -71,6 +78,10 @@ export function EditCompanyDialog({ open, onOpenChange, company }: EditCompanyDi
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleLocationChange = (lat: number, lng: number) => {
+    setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
   };
 
   return (
@@ -211,6 +222,14 @@ export function EditCompanyDialog({ open, onOpenChange, company }: EditCompanyDi
               rows={3}
             />
           </div>
+
+          {/* Map Selector */}
+          <MapSelector
+            address={formData.address}
+            latitude={formData.latitude}
+            longitude={formData.longitude}
+            onLocationChange={handleLocationChange}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

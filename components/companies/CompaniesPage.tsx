@@ -113,19 +113,24 @@ export function CompaniesPage() {
               />
             </div>
             <Select value={sectorFilter} onValueChange={setSectorFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Todos los sectores" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los sectores</SelectItem>
-                <SelectItem value="restaurante">Restaurante</SelectItem>
+                <SelectItem value="Restaurante">Restaurante</SelectItem>
                 <SelectItem value="Tecnología">Tecnología</SelectItem>
                 <SelectItem value="Retail">Retail</SelectItem>
                 <SelectItem value="Servicios">Servicios</SelectItem>
+                <SelectItem value="Manufactura">Manufactura</SelectItem>
+                <SelectItem value="Turismo">Turismo</SelectItem>
+                <SelectItem value="Salud">Salud</SelectItem>
+                <SelectItem value="Educación">Educación</SelectItem>
+                <SelectItem value="Otro">Otro</SelectItem>
               </SelectContent>
             </Select>
             <Select value={sizeFilter} onValueChange={setSizeFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Todos los tamaños" />
               </SelectTrigger>
               <SelectContent>
@@ -136,10 +141,6 @@ export function CompaniesPage() {
                 <SelectItem value="Empresa (200+)">Empresa (200+)</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Más Filtros
-            </Button>
           </div>
 
           {/* Stats */}
