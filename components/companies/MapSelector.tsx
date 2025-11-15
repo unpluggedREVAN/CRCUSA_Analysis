@@ -19,20 +19,39 @@ export function MapSelector({ address, latitude, longitude, onLocationChange }: 
     lat: latitude || 39.8283,
     lng: longitude || -98.5795
   });
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchStatus, setSearchStatus] = useState<string>('');
 
-  const handleSearch = () => {
-    const query = encodeURIComponent(searchQuery);
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.length > 0) {
-          const newLat = parseFloat(data[0].lat);
-          const newLng = parseFloat(data[0].lon);
-          setCoords({ lat: newLat, lng: newLng });
-          onLocationChange(newLat, newLng);
-        }
-      })
-      .catch(error => console.error('Error searching location:', error));
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchStatus('Por favor ingresa una dirección');
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchStatus('Buscando ubicación...');
+
+    try {
+      const query = encodeURIComponent(searchQuery);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`);
+      const data = await res.json();
+
+      if (data && data.length > 0) {
+        const newLat = parseFloat(data[0].lat);
+        const newLng = parseFloat(data[0].lon);
+        setCoords({ lat: newLat, lng: newLng });
+        onLocationChange(newLat, newLng);
+        setSearchStatus('✓ Ubicación encontrada');
+        setTimeout(() => setSearchStatus(''), 2000);
+      } else {
+        setSearchStatus('No se encontró la ubicación. Intenta con otra dirección.');
+      }
+    } catch (error) {
+      console.error('Error searching location:', error);
+      setSearchStatus('Error al buscar ubicación. Intenta de nuevo.');
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${coords.lng-0.1},${coords.lat-0.1},${coords.lng+0.1},${coords.lat+0.1}&layer=mapnik&marker=${coords.lat},${coords.lng}`;
@@ -45,13 +64,28 @@ export function MapSelector({ address, latitude, longitude, onLocationChange }: 
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar dirección..."
+            placeholder="Ej: Nueva York, USA o Calle Principal 123, Madrid"
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            disabled={isSearching}
           />
-          <Button type="button" onClick={handleSearch} variant="outline">
+          <Button
+            type="button"
+            onClick={handleSearch}
+            variant="outline"
+            disabled={isSearching}
+          >
             <Search className="h-4 w-4" />
           </Button>
         </div>
+        {searchStatus && (
+          <p className={`text-xs mt-1 ${
+            searchStatus.includes('✓') ? 'text-green-600' :
+            searchStatus.includes('Error') || searchStatus.includes('No se encontró') ? 'text-red-600' :
+            'text-gray-600'
+          }`}>
+            {searchStatus}
+          </p>
+        )}
       </div>
 
       <div className="border rounded-lg overflow-hidden">
@@ -67,23 +101,16 @@ export function MapSelector({ address, latitude, longitude, onLocationChange }: 
         />
       </div>
 
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2 text-gray-600">
           <MapPin className="h-4 w-4" />
-          <span>Lat: {coords.lat.toFixed(6)}, Lng: {coords.lng.toFixed(6)}</span>
+          <span className="text-xs">Lat: {coords.lat.toFixed(6)}, Lng: {coords.lng.toFixed(6)}</span>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            const newLat = coords.lat;
-            const newLng = coords.lng;
-            onLocationChange(newLat, newLng);
-          }}
-        >
-          Confirmar Ubicación
-        </Button>
+        <div className="text-xs text-teal-600">
+          {coords.lat !== (latitude || 39.8283) || coords.lng !== (longitude || -98.5795)
+            ? '✓ Ubicación actualizada'
+            : 'Busca una dirección para actualizar'}
+        </div>
       </div>
     </div>
   );

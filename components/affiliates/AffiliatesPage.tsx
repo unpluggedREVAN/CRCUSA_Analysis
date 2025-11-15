@@ -32,9 +32,15 @@ export function AffiliatesPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedAffiliate, setSelectedAffiliate] = useState<Affiliate | null>(null);
 
+  const uniqueStatuses = Array.from(new Set(affiliates.map(a => a.status).filter(Boolean)));
+  const uniqueTiers = Array.from(new Set(affiliates.map(a => a.tier).filter(Boolean)));
+
   const filteredAffiliates = affiliates.filter(affiliate => {
-    const matchesSearch = affiliate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         affiliate.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase().trim();
+    const matchesSearch =
+      searchLower === '' ||
+      affiliate.name.toLowerCase().includes(searchLower) ||
+      affiliate.email.toLowerCase().includes(searchLower);
     const matchesStatus = statusFilter === 'all' || affiliate.status === statusFilter;
     const matchesTier = tierFilter === 'all' || affiliate.tier === tierFilter;
 
@@ -106,10 +112,9 @@ export function AffiliatesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="Activo">Activo</SelectItem>
-                    <SelectItem value="Inactivo">Inactivo</SelectItem>
-                    <SelectItem value="Pendiente">Pendiente</SelectItem>
-                    <SelectItem value="Suspendido">Suspendido</SelectItem>
+                    {uniqueStatuses.map(status => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
@@ -120,10 +125,9 @@ export function AffiliatesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="Platino">Platino</SelectItem>
-                    <SelectItem value="Oro">Oro</SelectItem>
-                    <SelectItem value="Plata">Plata</SelectItem>
-                    <SelectItem value="Bronce">Bronce</SelectItem>
+                    {uniqueTiers.map(tier => (
+                      <SelectItem key={tier} value={tier}>{tier}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

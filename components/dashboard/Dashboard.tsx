@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { useData } from '@/contexts/DataContext';
-import { CompaniesMap } from './CompaniesMap';
+import { InteractiveCompaniesMap } from './InteractiveCompaniesMap';
+import { exportDashboardToPDF, exportDashboardToCSV } from '@/lib/dashboard-export';
 import { toast } from 'sonner';
 import {
   TrendingUp,
@@ -30,7 +31,9 @@ import {
   Medal,
   Star,
   Activity,
-  Trash2
+  Trash2,
+  FileText,
+  Download
 } from 'lucide-react';
 
 export function Dashboard() {
@@ -57,6 +60,37 @@ export function Dashboard() {
     } finally {
       setIsCleaningDuplicates(false);
     }
+  };
+
+  const handleExportPDF = () => {
+    exportDashboardToPDF({
+      contacts,
+      companies,
+      affiliates,
+      sponsors,
+      campaigns
+    });
+    toast.success('Reporte PDF generado exitosamente');
+  };
+
+  const handleExportCSV = () => {
+    const csvContent = exportDashboardToCSV({
+      contacts,
+      companies,
+      affiliates,
+      sponsors,
+      campaigns
+    });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `dashboard_reporte_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Reporte CSV generado exitosamente');
   };
 
   const stats = useMemo(() => {
@@ -226,9 +260,27 @@ export function Dashboard() {
           <Button
             variant="outline"
             size="sm"
+            className="border-red-600 text-red-600 hover:bg-red-50"
+            onClick={handleExportPDF}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Exportar PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-green-600 text-green-600 hover:bg-green-50"
+            onClick={handleExportCSV}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Exportar CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleCleanupDuplicates}
             disabled={isCleaningDuplicates}
-            className="border-red-600 text-red-600 hover:bg-red-50"
+            className="border-orange-600 text-orange-600 hover:bg-orange-50"
           >
             {isCleaningDuplicates ? (
               <Activity className="h-4 w-4 mr-2 animate-spin" />
@@ -569,7 +621,7 @@ export function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CompaniesMap companies={companies} />
+              <InteractiveCompaniesMap companies={companies} />
             </CardContent>
           </Card>
         </div>

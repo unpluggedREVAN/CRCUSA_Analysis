@@ -11,12 +11,14 @@ import { CompanyCard } from './CompanyCard';
 import { AddCompanyDialog } from './AddCompanyDialog';
 import { ImportCSVDialog } from '../contacts/ImportCSVDialog';
 import { useData } from '@/contexts/DataContext';
-import { 
-  Upload, 
-  Download, 
-  Plus, 
+import { exportCompaniesToPDF } from '@/lib/pdf-export';
+import {
+  Upload,
+  Download,
+  Plus,
   Search,
-  Filter
+  Filter,
+  FileText
 } from 'lucide-react';
 
 
@@ -28,15 +30,20 @@ export function CompaniesPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
 
-  // Filter companies
+  const uniqueSectors = Array.from(new Set(companies.map(c => c.sector).filter(Boolean)));
+  const uniqueSizes = Array.from(new Set(companies.map(c => c.size).filter(Boolean)));
+
   const filteredCompanies = companies.filter(company => {
-    const matchesSearch = company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         company.tradeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         company.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const searchLower = searchTerm.toLowerCase().trim();
+    const matchesSearch =
+      searchLower === '' ||
+      (company.name && company.name.toLowerCase().includes(searchLower)) ||
+      (company.tradeName && company.tradeName.toLowerCase().includes(searchLower)) ||
+      (company.email && company.email.toLowerCase().includes(searchLower));
+
     const matchesSector = sectorFilter === 'all' || company.sector === sectorFilter;
     const matchesSize = sizeFilter === 'all' || company.size === sizeFilter;
-    
+
     return matchesSearch && matchesSector && matchesSize;
   });
 
@@ -56,7 +63,9 @@ export function CompaniesPage() {
   ];
 
   const handleExportCSV = () => {
-    const csvContent = exportCompaniesToCSV();
+    const isFiltered = searchTerm || sectorFilter !== 'all' || sizeFilter !== 'all';
+    const dataToExport = isFiltered ? filteredCompanies : companies;
+    const csvContent = exportCompaniesToCSV(dataToExport);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -66,6 +75,12 @@ export function CompaniesPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleExportPDF = () => {
+    const isFiltered = !!(searchTerm || sectorFilter !== 'all' || sizeFilter !== 'all');
+    const dataToExport = isFiltered ? filteredCompanies : companies;
+    exportCompaniesToPDF(dataToExport, isFiltered);
   };
 
   return (
@@ -83,8 +98,16 @@ export function CompaniesPage() {
             <Upload className="h-4 w-4 mr-2" />
             Importar CSV
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
+            className="border-red-600 text-red-600 hover:bg-red-50"
+            onClick={handleExportPDF}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Exportar PDF
+          </Button>
+          <Button
+            variant="outline"
             className="border-green-600 text-green-600 hover:bg-green-50"
             onClick={handleExportCSV}
           >
@@ -112,33 +135,34 @@ export function CompaniesPage() {
                 className="pl-10"
               />
             </div>
-            <Select value={sectorFilter} onValueChange={setSectorFilter}>
+            <Select value={sectorFilter} onValueChange={(value) => {
+              setSectorFilter(value);
+            }}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Todos los sectores" />
+                <SelectValue>
+                  {sectorFilter === 'all' ? 'Todos los sectores' : sectorFilter}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los sectores</SelectItem>
-                <SelectItem value="Restaurante">Restaurante</SelectItem>
-                <SelectItem value="Tecnología">Tecnología</SelectItem>
-                <SelectItem value="Retail">Retail</SelectItem>
-                <SelectItem value="Servicios">Servicios</SelectItem>
-                <SelectItem value="Manufactura">Manufactura</SelectItem>
-                <SelectItem value="Turismo">Turismo</SelectItem>
-                <SelectItem value="Salud">Salud</SelectItem>
-                <SelectItem value="Educación">Educación</SelectItem>
-                <SelectItem value="Otro">Otro</SelectItem>
+                {uniqueSectors.map(sector => (
+                  <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select value={sizeFilter} onValueChange={setSizeFilter}>
+            <Select value={sizeFilter} onValueChange={(value) => {
+              setSizeFilter(value);
+            }}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Todos los tamaños" />
+                <SelectValue>
+                  {sizeFilter === 'all' ? 'Todos los tamaños' : sizeFilter}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los tamaños</SelectItem>
-                <SelectItem value="Pequeña (1-10)">Pequeña (1-10)</SelectItem>
-                <SelectItem value="Mediana (11-50)">Mediana (11-50)</SelectItem>
-                <SelectItem value="Grande (51-200)">Grande (51-200)</SelectItem>
-                <SelectItem value="Empresa (200+)">Empresa (200+)</SelectItem>
+                {uniqueSizes.map(size => (
+                  <SelectItem key={size} value={size}>{size}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

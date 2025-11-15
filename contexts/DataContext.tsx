@@ -103,8 +103,8 @@ interface DataContextType {
   getContactsByCompany: (companyId: string) => Contact[];
   importContactsFromCSV: (csvData: string) => Promise<{ success: number; errors: string[] }>;
   importCompaniesFromCSV: (csvData: string) => Promise<{ success: number; errors: string[] }>;
-  exportContactsToCSV: () => string;
-  exportCompaniesToCSV: () => string;
+  exportContactsToCSV: (data?: Contact[]) => string;
+  exportCompaniesToCSV: (data?: Company[]) => string;
   addAffiliate: (affiliate: Omit<Affiliate, 'id' | 'createdAt' | 'updatedAt' | 'initials'>) => Promise<void>;
   updateAffiliate: (id: string, affiliate: Partial<Affiliate>) => Promise<void>;
   deleteAffiliate: (id: string) => Promise<void>;
@@ -722,11 +722,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return { success, errors };
   };
 
-  const exportContactsToCSV = (): string => {
+  const exportContactsToCSV = (data?: Contact[]): string => {
+    const contactsToExport = data || contacts;
     const headers = ['name', 'email', 'phone', 'company', 'role', 'status', 'score', 'interest', 'probability', 'origin', 'estimatedValue', 'location', 'isPotential', 'createdAt', 'updatedAt', 'owner'];
     const csvContent = [
       headers.join(','),
-      ...contacts.map(contact =>
+      ...contactsToExport.map(contact =>
         headers.map(header => {
           const value = contact[header as keyof Contact];
           return typeof value === 'string' ? `"${value}"` : value;
@@ -737,11 +738,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return csvContent;
   };
 
-  const exportCompaniesToCSV = (): string => {
-    const headers = ['name', 'tradeName', 'email', 'phone', 'website', 'sector', 'size', 'location', 'address', 'description', 'createdAt', 'updatedAt', 'owner'];
+  const exportCompaniesToCSV = (data?: Company[]): string => {
+    const companiesToExport = data || companies;
+    const headers = ['name', 'tradeName', 'email', 'phone', 'website', 'sector', 'size', 'location', 'address', 'description', 'latitude', 'longitude', 'createdAt', 'updatedAt', 'owner'];
     const csvContent = [
       headers.join(','),
-      ...companies.map(company =>
+      ...companiesToExport.map(company =>
         headers.map(header => {
           const value = company[header as keyof Company];
           return typeof value === 'string' ? `"${value}"` : value;

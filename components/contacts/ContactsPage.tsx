@@ -11,12 +11,14 @@ import { ContactCard } from './ContactCard';
 import { AddContactDialog } from './AddContactDialog';
 import { ImportCSVDialog } from './ImportCSVDialog';
 import { useData } from '@/contexts/DataContext';
-import { 
-  Upload, 
-  Download, 
-  Plus, 
+import { exportContactsToPDF } from '@/lib/pdf-export';
+import {
+  Upload,
+  Download,
+  Plus,
   Search,
-  Filter
+  Filter,
+  FileText
 } from 'lucide-react';
 
 
@@ -28,15 +30,20 @@ export function ContactsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
 
-  // Filter contacts
+  const uniqueStatuses = Array.from(new Set(contacts.map(c => c.status).filter(Boolean)));
+  const uniqueOrigins = Array.from(new Set(contacts.map(c => c.origin).filter(Boolean)));
+
   const filteredContacts = contacts.filter(contact => {
-    const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (contact.company && contact.company.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+    const searchLower = searchTerm.toLowerCase().trim();
+    const matchesSearch =
+      searchLower === '' ||
+      (contact.name && contact.name.toLowerCase().includes(searchLower)) ||
+      (contact.email && contact.email.toLowerCase().includes(searchLower)) ||
+      (contact.company && contact.company.toLowerCase().includes(searchLower));
+
     const matchesStatus = statusFilter === 'all' || contact.status === statusFilter;
     const matchesOrigin = originFilter === 'all' || contact.origin === originFilter;
-    
+
     return matchesSearch && matchesStatus && matchesOrigin;
   });
 
@@ -54,7 +61,9 @@ export function ContactsPage() {
   ];
 
   const handleExportCSV = () => {
-    const csvContent = exportContactsToCSV();
+    const isFiltered = !!(searchTerm || statusFilter !== 'all' || originFilter !== 'all');
+    const dataToExport = isFiltered ? filteredContacts : contacts;
+    const csvContent = exportContactsToCSV(dataToExport);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -64,6 +73,12 @@ export function ContactsPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleExportPDF = () => {
+    const isFiltered = !!(searchTerm || statusFilter !== 'all' || originFilter !== 'all');
+    const dataToExport = isFiltered ? filteredContacts : contacts;
+    exportContactsToPDF(dataToExport, isFiltered);
   };
 
   return (
@@ -81,8 +96,16 @@ export function ContactsPage() {
             <Upload className="h-4 w-4 mr-2" />
             Importar CSV
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
+            className="border-red-600 text-red-600 hover:bg-red-50"
+            onClick={handleExportPDF}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Exportar PDF
+          </Button>
+          <Button
+            variant="outline"
             className="border-green-600 text-green-600 hover:bg-green-50"
             onClick={handleExportCSV}
           >
@@ -110,28 +133,34 @@ export function ContactsPage() {
                 className="pl-10"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(value) => {
+              setStatusFilter(value);
+            }}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Todos los estados" />
+                <SelectValue>
+                  {statusFilter === 'all' ? 'Todos los estados' : statusFilter}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="Primer contacto">Primer contacto</SelectItem>
-                <SelectItem value="Segundo contacto">Segundo contacto</SelectItem>
-                <SelectItem value="Negociación">Negociación</SelectItem>
-                <SelectItem value="Cerrado">Cerrado</SelectItem>
+                {uniqueStatuses.map(status => (
+                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select value={originFilter} onValueChange={setOriginFilter}>
+            <Select value={originFilter} onValueChange={(value) => {
+              setOriginFilter(value);
+            }}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Todos los orígenes" />
+                <SelectValue>
+                  {originFilter === 'all' ? 'Todos los orígenes' : originFilter}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los orígenes</SelectItem>
-                <SelectItem value="Web">Web</SelectItem>
-                <SelectItem value="Referencia">Referencia</SelectItem>
-                <SelectItem value="Importación">Importación</SelectItem>
-                <SelectItem value="Evento">Evento</SelectItem>
+                {uniqueOrigins.map(origin => (
+                  <SelectItem key={origin} value={origin}>{origin}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

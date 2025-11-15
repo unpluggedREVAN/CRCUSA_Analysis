@@ -32,10 +32,16 @@ export function SponsorsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedSponsor, setSelectedSponsor] = useState<Sponsor | null>(null);
 
+  const uniqueStatuses = Array.from(new Set(sponsors.map(s => s.status).filter(Boolean)));
+  const uniqueTypes = Array.from(new Set(sponsors.map(s => s.sponsorshipType).filter(Boolean)));
+
   const filteredSponsors = sponsors.filter(sponsor => {
-    const matchesSearch = sponsor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         sponsor.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         sponsor.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase().trim();
+    const matchesSearch =
+      searchLower === '' ||
+      sponsor.name.toLowerCase().includes(searchLower) ||
+      sponsor.company.toLowerCase().includes(searchLower) ||
+      sponsor.email.toLowerCase().includes(searchLower);
     const matchesStatus = statusFilter === 'all' || sponsor.status === statusFilter;
     const matchesType = typeFilter === 'all' || sponsor.sponsorshipType === typeFilter;
 
@@ -107,10 +113,9 @@ export function SponsorsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="Activo">Activo</SelectItem>
-                    <SelectItem value="Expirado">Expirado</SelectItem>
-                    <SelectItem value="Pendiente">Pendiente</SelectItem>
-                    <SelectItem value="Cancelado">Cancelado</SelectItem>
+                    {uniqueStatuses.map(status => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
@@ -121,10 +126,9 @@ export function SponsorsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="Platino">Platino</SelectItem>
-                    <SelectItem value="Oro">Oro</SelectItem>
-                    <SelectItem value="Plata">Plata</SelectItem>
-                    <SelectItem value="Bronce">Bronce</SelectItem>
+                    {uniqueTypes.map(type => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
