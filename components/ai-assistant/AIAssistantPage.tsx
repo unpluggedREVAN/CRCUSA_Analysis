@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -12,7 +14,8 @@ import {
   Send,
   User,
   Loader2,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 
 interface Message {
@@ -22,16 +25,36 @@ interface Message {
   timestamp: string;
 }
 
+const STORAGE_KEY = 'ai-assistant-messages';
+
+const getInitialMessages = (): Message[] => {
+  const defaultMessage: Message = {
+    id: '1',
+    type: 'assistant',
+    content: '¡Hola! Soy tu asistente de IA. Puedo ayudarte a analizar los datos de tu CRM. Pregúntame sobre contactos, empresas, afiliados, patrocinadores o campañas.',
+    timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  if (typeof window === 'undefined') {
+    return [defaultMessage];
+  }
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : [defaultMessage];
+    }
+  } catch (error) {
+    console.error('Error loading messages from localStorage:', error);
+  }
+
+  return [defaultMessage];
+};
+
 export function AIAssistantPage() {
   const { contacts, companies, affiliates, sponsors, campaigns } = useData();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      type: 'assistant',
-      content: '¡Hola! Soy tu asistente de IA. Puedo ayudarte a analizar los datos de tu CRM. Pregúntame sobre contactos, empresas, afiliados, patrocinadores o campañas.',
-      timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>(getInitialMessages);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -42,6 +65,16 @@ export function AIAssistantPage() {
 
   useEffect(() => {
     scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      } catch (error) {
+        console.error('Error saving messages to localStorage:', error);
+      }
+    }
   }, [messages]);
 
   const handleSendMessage = async () => {
@@ -86,6 +119,23 @@ export function AIAssistantPage() {
     }
   };
 
+  const handleClearHistory = () => {
+    const defaultMessage: Message = {
+      id: '1',
+      type: 'assistant',
+      content: '¡Hola! Soy tu asistente de IA. Puedo ayudarte a analizar los datos de tu CRM. Pregúntame sobre contactos, empresas, afiliados, patrocinadores o campañas.',
+      timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    };
+    setMessages([defaultMessage]);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (error) {
+        console.error('Error clearing localStorage:', error);
+      }
+    }
+  };
+
   const suggestedQuestions = [
     "¿Cuántos contactos tenemos en total?",
     "¿Cuál es el sector con más empresas?",
@@ -98,10 +148,22 @@ export function AIAssistantPage() {
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <PageHeader
-          title="Asistente IA"
-          description="Consulta inteligente de datos empresariales."
-        />
+        <div className="border-b bg-white px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Asistente IA</h1>
+            <p className="text-sm text-gray-600">Consulta inteligente de datos empresariales.</p>
+          </div>
+          <Button
+            onClick={handleClearHistory}
+            variant="outline"
+            size="sm"
+            className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+            disabled={isLoading}
+          >
+            <Trash2 className="h-4 w-4" />
+            Limpiar historial
+          </Button>
+        </div>
 
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
           <div className="flex-1 overflow-y-auto p-6">
@@ -129,7 +191,15 @@ export function AIAssistantPage() {
                         ? 'bg-teal-600 text-white'
                         : 'bg-gray-50 border border-gray-200'
                     }`}>
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      {message.type === 'assistant' ? (
+                        <div className="ai-message-markdown text-sm">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      )}
                       <p className={`text-xs mt-2 ${
                         message.type === 'user' ? 'text-teal-100' : 'text-gray-500'
                       }`}>

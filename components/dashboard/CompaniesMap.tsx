@@ -18,13 +18,6 @@ export function CompaniesMap({ companies: companiesParam }: CompaniesMapProps) {
     const container = mapContainerRef.current;
     container.innerHTML = '';
 
-    const mapDiv = document.createElement('div');
-    mapDiv.style.width = '100%';
-    mapDiv.style.height = '400px';
-    mapDiv.style.position = 'relative';
-    mapDiv.style.backgroundColor = '#f0f0f0';
-    container.appendChild(mapDiv);
-
     const minLat = Math.min(...companiesWithCoords.map(c => c.latitude!));
     const maxLat = Math.max(...companiesWithCoords.map(c => c.latitude!));
     const minLng = Math.min(...companiesWithCoords.map(c => c.longitude!));
@@ -33,19 +26,38 @@ export function CompaniesMap({ companies: companiesParam }: CompaniesMapProps) {
     const centerLat = (minLat + maxLat) / 2;
     const centerLng = (minLng + maxLng) / 2;
 
-    const padding = 5;
-    const bboxStr = `${minLng - padding},${minLat - padding},${maxLng + padding},${maxLat + padding}`;
+    const latRange = maxLat - minLat;
+    const lngRange = maxLng - minLng;
+    const maxRange = Math.max(latRange, lngRange);
+
+    let zoom = 10;
+    if (maxRange > 20) zoom = 4;
+    else if (maxRange > 10) zoom = 5;
+    else if (maxRange > 5) zoom = 6;
+    else if (maxRange > 2) zoom = 7;
+    else if (maxRange > 1) zoom = 8;
+    else if (maxRange > 0.5) zoom = 9;
+
+    const markers = companiesWithCoords.map((c, idx) =>
+      `&markers=${c.latitude},${c.longitude},red-${idx + 1}`
+    ).join('');
+
+    const mapDiv = document.createElement('div');
+    mapDiv.style.width = '100%';
+    mapDiv.style.height = '400px';
+    mapDiv.style.position = 'relative';
+    mapDiv.style.backgroundColor = '#e5e7eb';
+    mapDiv.style.borderRadius = '0.5rem';
+    mapDiv.style.overflow = 'hidden';
+    container.appendChild(mapDiv);
 
     const iframe = document.createElement('iframe');
     iframe.width = '100%';
     iframe.height = '400';
     iframe.style.border = 'none';
+    iframe.loading = 'lazy';
 
-    const markerParams = companiesWithCoords.map(c =>
-      `mlat[]=${c.latitude}&mlon[]=${c.longitude}`
-    ).join('&');
-
-    iframe.src = `https://www.openstreetmap.org/export/embed.html?bbox=${bboxStr}&layer=mapnik&${markerParams}`;
+    iframe.src = `https://www.openstreetmap.org/export/embed.html?bbox=${minLng - 1},${minLat - 1},${maxLng + 1},${maxLat + 1}&layer=mapnik&marker=${centerLat},${centerLng}`;
 
     mapDiv.appendChild(iframe);
 
@@ -67,20 +79,34 @@ export function CompaniesMap({ companies: companiesParam }: CompaniesMapProps) {
 
   return (
     <div className="space-y-4">
-      <div className="border rounded-lg overflow-hidden" ref={mapContainerRef} />
+      <div className="rounded-lg overflow-hidden" ref={mapContainerRef} />
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-        {companiesWithCoords.slice(0, 6).map(company => (
-          <div key={company.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm">
-            <MapPin className="h-4 w-4 text-teal-600 flex-shrink-0" />
-            <span className="truncate">{company.name}</span>
+        {companiesWithCoords.map((company, idx) => (
+          <div key={company.id} className="flex items-center gap-2 p-3 bg-gradient-to-br from-teal-50 to-blue-50 border border-teal-200 rounded-lg text-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-center w-6 h-6 bg-teal-600 text-white rounded-full text-xs font-bold flex-shrink-0">
+              {idx + 1}
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="block truncate font-medium text-gray-900">{company.name}</span>
+              <span className="block truncate text-xs text-gray-600">{company.location}</span>
+            </div>
           </div>
         ))}
-        {companiesWithCoords.length > 6 && (
-          <div className="flex items-center justify-center p-2 bg-gray-100 rounded text-sm text-gray-600">
-            +{companiesWithCoords.length - 6} más
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <MapPin className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-blue-900">
+              {companiesWithCoords.length} {companiesWithCoords.length === 1 ? 'empresa' : 'empresas'} con ubicación registrada
+            </p>
+            <p className="text-xs text-blue-700 mt-1">
+              El mapa muestra el área general. Los números corresponden a cada empresa listada.
+            </p>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

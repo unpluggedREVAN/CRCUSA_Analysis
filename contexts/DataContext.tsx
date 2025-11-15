@@ -265,6 +265,8 @@ const initialCompanies: Company[] = [
     location: 'Milwaukee, Wisconsin, Estados Unidos',
     address: '1532 N Farwell Ave, Milwaukee, WI 53202',
     description: 'Restaurante especializado en comida costarricense auténtica',
+    latitude: 43.0458,
+    longitude: -87.8959,
     createdAt: '15/1/2024',
     updatedAt: '15/1/2024',
     owner: 'admin@crcusa.com',
@@ -282,6 +284,8 @@ const initialCompanies: Company[] = [
     location: 'Newark, New Jersey, Estados Unidos',
     address: '123 Main St, Newark, NJ 07102',
     description: 'Restaurante familiar con especialidades costarricenses',
+    latitude: 40.7357,
+    longitude: -74.1724,
     createdAt: '15/1/2024',
     updatedAt: '15/1/2024',
     owner: 'admin@crcusa.com',
@@ -299,6 +303,8 @@ const initialCompanies: Company[] = [
     location: 'Denver, Colorado, Estados Unidos',
     address: '456 Denver Ave, Denver, CO 80202',
     description: 'Cadena de restaurantes especializados en pollo al estilo costarricense',
+    latitude: 39.7392,
+    longitude: -104.9903,
     createdAt: '15/1/2024',
     updatedAt: '15/1/2024',
     owner: 'admin@crcusa.com',
@@ -316,6 +322,8 @@ const initialCompanies: Company[] = [
     location: 'Newark, New Jersey, Estados Unidos',
     address: '789 Newark St, Newark, NJ 07103',
     description: 'Restaurante tradicional con ambiente familiar',
+    latitude: 40.7282,
+    longitude: -74.1776,
     createdAt: '15/1/2024',
     updatedAt: '15/1/2024',
     owner: 'admin@crcusa.com',
@@ -333,6 +341,8 @@ const initialCompanies: Company[] = [
     location: 'Nueva York, Estados Unidos',
     address: '321 NY Ave, New York, NY 10001',
     description: 'Restaurante boutique con fusión costarricense',
+    latitude: 40.7484,
+    longitude: -73.9857,
     createdAt: '15/1/2024',
     updatedAt: '15/1/2024',
     owner: 'admin@crcusa.com',
@@ -350,6 +360,8 @@ const initialCompanies: Company[] = [
     location: 'Chicago, Illinois, Estados Unidos',
     address: '654 Chicago Blvd, Chicago, IL 60601',
     description: 'Restaurante tradicional costarricense en el corazón de Chicago',
+    latitude: 41.8781,
+    longitude: -87.6298,
     createdAt: '15/1/2024',
     updatedAt: '15/1/2024',
     owner: 'admin@crcusa.com',
@@ -993,105 +1005,91 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       let affiliatesRemoved = 0;
       let sponsorsRemoved = 0;
 
-      const parseDate = (dateStr: string): number => {
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-          return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+      const parseDate = (dateValue: any): number => {
+        if (!dateValue) return 0;
+
+        if (dateValue instanceof Date) {
+          return dateValue.getTime();
         }
-        return new Date(dateStr).getTime();
+
+        if (typeof dateValue === 'string') {
+          const parts = dateValue.split('/');
+          if (parts.length === 3) {
+            const parsed = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+            if (!isNaN(parsed.getTime())) {
+              return parsed.getTime();
+            }
+          }
+
+          const isoDate = new Date(dateValue);
+          if (!isNaN(isoDate.getTime())) {
+            return isoDate.getTime();
+          }
+        }
+
+        return 0;
       };
 
-      const emailMapContacts = new Map<string, any[]>();
-      contacts.forEach(c => {
-        const key = c.email.toLowerCase();
-        if (!emailMapContacts.has(key)) emailMapContacts.set(key, []);
-        emailMapContacts.get(key)!.push(c);
-      });
+      const removeDuplicatesByEmail = async (
+        items: any[],
+        deleteService: { delete: (id: string) => Promise<void> }
+      ): Promise<number> => {
+        const emailMap = new Map<string, any[]>();
 
-      for (const duplicates of Array.from(emailMapContacts.values())) {
-        if (duplicates.length > 1) {
-          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
-          for (let i = 1; i < duplicates.length; i++) {
-            await contactsService.delete(duplicates[i].id);
-            contactsRemoved++;
+        items.forEach(item => {
+          if (item.email && typeof item.email === 'string') {
+            const normalizedEmail = item.email.trim().toLowerCase();
+            if (normalizedEmail) {
+              if (!emailMap.has(normalizedEmail)) {
+                emailMap.set(normalizedEmail, []);
+              }
+              emailMap.get(normalizedEmail)!.push(item);
+            }
           }
-        }
-      }
+        });
 
-      const emailMapCompanies = new Map<string, any[]>();
-      const nameMapCompanies = new Map<string, any[]>();
+        let removed = 0;
 
-      companies.forEach(c => {
-        const emailKey = c.email.toLowerCase();
-        if (!emailMapCompanies.has(emailKey)) emailMapCompanies.set(emailKey, []);
-        emailMapCompanies.get(emailKey)!.push(c);
+        for (const [email, duplicates] of Array.from(emailMap.entries())) {
+          if (duplicates.length > 1) {
+            duplicates.sort((a, b) => {
+              const dateA = parseDate(a.createdAt);
+              const dateB = parseDate(b.createdAt);
 
-        const nameKey = c.name.toLowerCase();
-        if (!nameMapCompanies.has(nameKey)) nameMapCompanies.set(nameKey, []);
-        nameMapCompanies.get(nameKey)!.push(c);
-      });
+              if (dateA === 0 && dateB === 0) {
+                return a.id.localeCompare(b.id);
+              }
+              if (dateA === 0) return 1;
+              if (dateB === 0) return -1;
 
-      const processedCompanyIds = new Set<string>();
+              return dateA - dateB;
+            });
 
-      for (const duplicates of Array.from(emailMapCompanies.values())) {
-        if (duplicates.length > 1) {
-          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
-          for (let i = 1; i < duplicates.length; i++) {
-            if (!processedCompanyIds.has(duplicates[i].id)) {
-              await companiesService.delete(duplicates[i].id);
-              processedCompanyIds.add(duplicates[i].id);
-              companiesRemoved++;
+            for (let i = 1; i < duplicates.length; i++) {
+              try {
+                await deleteService.delete(duplicates[i].id);
+                removed++;
+              } catch (error) {
+                console.error(`Error deleting duplicate ${duplicates[i].id}:`, error);
+              }
             }
           }
         }
-      }
 
-      for (const duplicates of Array.from(nameMapCompanies.values())) {
-        if (duplicates.length > 1) {
-          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
-          for (let i = 1; i < duplicates.length; i++) {
-            if (!processedCompanyIds.has(duplicates[i].id)) {
-              await companiesService.delete(duplicates[i].id);
-              processedCompanyIds.add(duplicates[i].id);
-              companiesRemoved++;
-            }
-          }
-        }
-      }
+        return removed;
+      };
 
-      const emailMapAffiliates = new Map<string, any[]>();
-      affiliates.forEach(a => {
-        const key = a.email.toLowerCase();
-        if (!emailMapAffiliates.has(key)) emailMapAffiliates.set(key, []);
-        emailMapAffiliates.get(key)!.push(a);
-      });
+      const freshContacts = await contactsService.getAll();
+      contactsRemoved = await removeDuplicatesByEmail(freshContacts, contactsService);
 
-      for (const duplicates of Array.from(emailMapAffiliates.values())) {
-        if (duplicates.length > 1) {
-          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
-          for (let i = 1; i < duplicates.length; i++) {
-            await affiliatesService.delete(duplicates[i].id);
-            affiliatesRemoved++;
-          }
-        }
-      }
+      const freshCompanies = await companiesService.getAll();
+      companiesRemoved = await removeDuplicatesByEmail(freshCompanies, companiesService);
 
-      const emailMapSponsors = new Map<string, any[]>();
-      sponsors.forEach(s => {
-        const key = s.email.toLowerCase();
-        if (!emailMapSponsors.has(key)) emailMapSponsors.set(key, []);
-        emailMapSponsors.get(key)!.push(s);
-      });
+      const freshAffiliates = await affiliatesService.getAll();
+      affiliatesRemoved = await removeDuplicatesByEmail(freshAffiliates, affiliatesService);
 
-      for (const duplicates of Array.from(emailMapSponsors.values())) {
-        if (duplicates.length > 1) {
-          duplicates.sort((a, b) => parseDate(a.createdAt) - parseDate(b.createdAt));
-          for (let i = 1; i < duplicates.length; i++) {
-            await sponsorsService.delete(duplicates[i].id);
-            sponsorsRemoved++;
-          }
-        }
-      }
+      const freshSponsors = await sponsorsService.getAll();
+      sponsorsRemoved = await removeDuplicatesByEmail(freshSponsors, sponsorsService);
 
       await loadData();
 
