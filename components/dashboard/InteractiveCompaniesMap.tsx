@@ -2,137 +2,103 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Company } from '@/contexts/DataContext';
-import { MapPin, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { MapPin } from 'lucide-react';
 
 interface InteractiveCompaniesMapProps {
   companies: Company[];
 }
 
+declare global {
+  interface Window {
+    google: any;
+    initMap: () => void;
+  }
+}
+
 export function InteractiveCompaniesMap({ companies: companiesParam }: InteractiveCompaniesMapProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [zoom, setZoom] = useState(1);
   const companiesWithCoords = companiesParam.filter(c => c.latitude && c.longitude);
 
   useEffect(() => {
-    if (!canvasRef.current || companiesWithCoords.length === 0) return;
+    if (typeof window === 'undefined' || companiesWithCoords.length === 0) return;
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const width = canvas.width;
-    const height = canvas.height;
-
-    ctx.clearRect(0, 0, width, height);
-
-    const lats = companiesWithCoords.map(c => c.latitude!);
-    const lngs = companiesWithCoords.map(c => c.longitude!);
-
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-
-    const padding = 50;
-    const latRange = maxLat - minLat || 1;
-    const lngRange = maxLng - minLng || 1;
-
-    const scaleX = (width - 2 * padding) / lngRange;
-    const scaleY = (height - 2 * padding) / latRange;
-
-    const projectX = (lng: number) => padding + (lng - minLng) * scaleX * zoom;
-    const projectY = (lat: number) => height - padding - (lat - minLat) * scaleY * zoom;
-
-    ctx.fillStyle = '#f0f4f8';
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 10; i++) {
-      const x = padding + (width - 2 * padding) * (i / 10);
-      ctx.beginPath();
-      ctx.moveTo(x, padding);
-      ctx.lineTo(x, height - padding);
-      ctx.stroke();
-
-      const y = padding + (height - 2 * padding) * (i / 10);
-      ctx.beginPath();
-      ctx.moveTo(padding, y);
-      ctx.lineTo(width - padding, y);
-      ctx.stroke();
-    }
-
-    companiesWithCoords.forEach((company, idx) => {
-      const x = projectX(company.longitude!);
-      const y = projectY(company.latitude!);
-
-      ctx.beginPath();
-      ctx.arc(x, y, 8, 0, 2 * Math.PI);
-      ctx.fillStyle = '#0d9488';
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText((idx + 1).toString(), x, y);
-
-      ctx.fillStyle = '#0f766e';
-      ctx.font = '11px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(company.name.substring(0, 15), x, y - 20);
-    });
-
-  }, [companiesWithCoords, zoom]);
-
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleRatio = canvas.width / rect.width;
-    const clickX = (e.clientX - rect.left) * scaleRatio;
-    const clickY = (e.clientY - rect.top) * scaleRatio;
-
-    const width = canvas.width;
-    const height = canvas.height;
-    const padding = 50;
-
-    const lats = companiesWithCoords.map(c => c.latitude!);
-    const lngs = companiesWithCoords.map(c => c.longitude!);
-
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-
-    const latRange = maxLat - minLat || 1;
-    const lngRange = maxLng - minLng || 1;
-
-    const scaleX = (width - 2 * padding) / lngRange;
-    const scaleY = (height - 2 * padding) / latRange;
-
-    const projectX = (lng: number) => padding + (lng - minLng) * scaleX * zoom;
-    const projectY = (lat: number) => height - padding - (lat - minLat) * scaleY * zoom;
-
-    for (const company of companiesWithCoords) {
-      const x = projectX(company.longitude!);
-      const y = projectY(company.latitude!);
-
-      const distance = Math.sqrt((clickX - x) ** 2 + (clickY - y) ** 2);
-      if (distance < 15) {
-        setSelectedCompany(company);
+    const loadGoogleMaps = () => {
+      if (window.google && window.google.maps) {
+        setMapLoaded(true);
         return;
       }
-    }
 
-    setSelectedCompany(null);
-  };
+      if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setMapLoaded(true);
+      document.head.appendChild(script);
+    };
+
+    loadGoogleMaps();
+  }, [companiesWithCoords.length]);
+
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || companiesWithCoords.length === 0 || !window.google) return;
+
+    const bounds = new window.google.maps.LatLngBounds();
+
+    companiesWithCoords.forEach(company => {
+      bounds.extend(new window.google.maps.LatLng(company.latitude!, company.longitude!));
+    });
+
+    const center = bounds.getCenter();
+
+    const map = new window.google.maps.Map(mapRef.current, {
+      zoom: 10,
+      center: { lat: center.lat(), lng: center.lng() },
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true,
+    });
+
+    map.fitBounds(bounds);
+
+    const infoWindow = new window.google.maps.InfoWindow();
+
+    companiesWithCoords.forEach((company, index) => {
+      const marker = new window.google.maps.Marker({
+        position: { lat: company.latitude!, lng: company.longitude! },
+        map: map,
+        title: company.name,
+        label: {
+          text: (index + 1).toString(),
+          color: 'white',
+          fontWeight: 'bold',
+        },
+      });
+
+      marker.addListener('click', () => {
+        setSelectedCompany(company);
+        const content = `
+          <div style="max-width: 250px;">
+            <h3 style="margin: 0 0 8px 0; font-weight: 600; color: #111;">${company.name}</h3>
+            <p style="margin: 4px 0; font-size: 14px; color: #666;">${company.location}</p>
+            <p style="margin: 4px 0; font-size: 13px; color: #888;">${company.address}</p>
+            <div style="margin-top: 8px; display: flex; gap: 4px;">
+              <span style="background: #ccfbf1; color: #0f766e; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${company.sector}</span>
+              <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${company.size}</span>
+            </div>
+          </div>
+        `;
+        infoWindow.setContent(content);
+        infoWindow.open(map, marker);
+      });
+    });
+
+  }, [mapLoaded, companiesWithCoords]);
 
   if (companiesWithCoords.length === 0) {
     return (
@@ -150,68 +116,8 @@ export function InteractiveCompaniesMap({ companies: companiesParam }: Interacti
 
   return (
     <div className="space-y-4">
-      <div className="relative bg-white border rounded-lg overflow-hidden shadow-sm">
-        <canvas
-          ref={canvasRef}
-          width={1200}
-          height={500}
-          onClick={handleCanvasClick}
-          className="w-full cursor-pointer"
-        />
-
-        <div className="absolute top-4 right-4 flex flex-col gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="bg-white"
-            onClick={() => setZoom(Math.min(zoom + 0.2, 3))}
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="bg-white"
-            onClick={() => setZoom(Math.max(zoom - 0.2, 0.5))}
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="bg-white"
-            onClick={() => setZoom(1)}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {selectedCompany && (
-          <div className="absolute bottom-4 left-4 right-4 bg-white border border-teal-200 rounded-lg p-4 shadow-lg">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">{selectedCompany.name}</h3>
-                <p className="text-sm text-gray-600 mt-1">{selectedCompany.location}</p>
-                <p className="text-xs text-gray-500 mt-1">{selectedCompany.address}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded">
-                    {selectedCompany.sector}
-                  </span>
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                    {selectedCompany.size}
-                  </span>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setSelectedCompany(null)}
-              >
-                ✕
-              </Button>
-            </div>
-          </div>
-        )}
+      <div className="w-full h-[500px] rounded-lg overflow-hidden border shadow-sm">
+        <div ref={mapRef} className="w-full h-full" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -248,6 +154,32 @@ export function InteractiveCompaniesMap({ companies: companiesParam }: Interacti
         ))}
       </div>
 
+      {selectedCompany && (
+        <div className="bg-white border border-teal-200 rounded-lg p-4 shadow-lg">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">{selectedCompany.name}</h3>
+              <p className="text-sm text-gray-600 mt-1">{selectedCompany.location}</p>
+              <p className="text-xs text-gray-500 mt-1">{selectedCompany.address}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded">
+                  {selectedCompany.sector}
+                </span>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                  {selectedCompany.size}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedCompany(null)}
+              className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <MapPin className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -256,7 +188,7 @@ export function InteractiveCompaniesMap({ companies: companiesParam }: Interacti
               {companiesWithCoords.length} {companiesWithCoords.length === 1 ? 'empresa' : 'empresas'} mapeadas
             </p>
             <p className="text-xs text-blue-700 mt-1">
-              Haz clic en cualquier punto del mapa o en las tarjetas para ver detalles de cada empresa.
+              Haz clic en cualquier marcador del mapa o en las tarjetas para ver detalles de cada empresa.
             </p>
           </div>
         </div>
