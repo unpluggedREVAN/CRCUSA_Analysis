@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { contactsService, companiesService, affiliatesService, sponsorsService, campaignsService, Campaign, CampaignRecipient, RecipientStatus } from '@/lib/firestore-service';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export interface Contact {
   id: string;
@@ -377,14 +379,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [userAuthenticated, setUserAuthenticated] = useState(false);
 
   useEffect(() => {
-    loadData();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserAuthenticated(true);
+        loadData();
+      } else {
+        setUserAuthenticated(false);
+        setContacts([]);
+        setCompanies([]);
+        setAffiliates([]);
+        setSponsors([]);
+        setCampaigns([]);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const loadData = async () => {
+    if (!userAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+
       const [contactsData, companiesData, affiliatesData, sponsorsData, campaignsData] = await Promise.all([
         contactsService.getAll(),
         companiesService.getAll(),
