@@ -62,8 +62,16 @@ export function EditCompanyDialog({ open, onOpenChange, company }: EditCompanyDi
 
     try {
       await updateCompany(company.id, {
-        ...formData,
+        name: formData.name,
         tradeName: formData.tradeName || formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        website: formData.website,
+        sector: formData.sector,
+        size: formData.size,
+        location: formData.location,
+        address: formData.address,
+        description: formData.description,
         latitude: formData.latitude,
         longitude: formData.longitude
       });
@@ -71,6 +79,7 @@ export function EditCompanyDialog({ open, onOpenChange, company }: EditCompanyDi
       onOpenChange(false);
     } catch (error) {
       console.error('Error updating company:', error);
+      alert((error as Error).message || 'Error al actualizar empresa');
     } finally {
       setIsLoading(false);
     }

@@ -58,10 +58,23 @@ export function EditSponsorDialog({ open, onOpenChange, sponsor }: EditSponsorDi
     setIsLoading(true);
 
     try {
-      await updateSponsor(sponsor.id, formData);
+      await updateSponsor(sponsor.id, {
+        name: formData.name,
+        company: formData.company,
+        email: formData.email,
+        phone: formData.phone,
+        sponsorshipType: formData.sponsorshipType,
+        amount: formData.amount,
+        status: formData.status,
+        endDate: formData.endDate,
+        benefits: formData.benefits,
+        location: formData.location,
+        website: formData.website
+      });
       onOpenChange(false);
     } catch (error) {
       console.error('Error updating sponsor:', error);
+      alert((error as Error).message || 'Error al actualizar patrocinador');
     } finally {
       setIsLoading(false);
     }

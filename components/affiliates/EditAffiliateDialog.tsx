@@ -53,10 +53,21 @@ export function EditAffiliateDialog({ open, onOpenChange, affiliate }: EditAffil
     setIsLoading(true);
 
     try {
-      await updateAffiliate(affiliate.id, formData);
+      await updateAffiliate(affiliate.id, {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        status: formData.status,
+        commissionRate: formData.commissionRate,
+        totalSales: formData.totalSales,
+        tier: formData.tier,
+        location: formData.location,
+        performanceScore: formData.performanceScore
+      });
       onOpenChange(false);
     } catch (error) {
       console.error('Error updating affiliate:', error);
+      alert((error as Error).message || 'Error al actualizar afiliado');
     } finally {
       setIsLoading(false);
     }

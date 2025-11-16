@@ -35,10 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: 'User'
         };
         setUser(userData);
-        localStorage.setItem('mockUser', JSON.stringify(userData));
       } else {
         setUser(null);
-        localStorage.removeItem('mockUser');
       }
       setIsLoading(false);
     });
@@ -49,24 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const fbUser = userCredential.user;
-
-      const userData = {
-        id: fbUser.uid,
-        name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Usuario',
-        email: fbUser.email || '',
-        role: 'User'
-      };
-
-      setUser(userData);
-      localStorage.setItem('mockUser', JSON.stringify(userData));
-      setIsLoading(false);
+      await signInWithEmailAndPassword(auth, email, password);
       return { success: true };
     } catch (error: any) {
       console.error('Login error:', error);
-      setUser(null);
-      localStorage.removeItem('mockUser');
       setIsLoading(false);
 
       let errorMessage = 'Error al iniciar sesión. Por favor, intenta de nuevo.';
@@ -88,8 +72,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await signOut(auth);
-      setUser(null);
-      localStorage.removeItem('mockUser');
     } catch (error) {
       console.error('Logout error:', error);
     }

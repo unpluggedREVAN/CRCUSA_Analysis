@@ -64,14 +64,35 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
     try {
       const company = companies.find(c => c.id === formData.companyId);
 
-      await updateContact(contact.id, {
-        ...formData,
-        company: company?.name || undefined
-      });
+      const updateData: any = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role,
+        status: formData.status,
+        score: formData.score,
+        interest: formData.interest,
+        probability: formData.probability,
+        origin: formData.origin,
+        estimatedValue: formData.estimatedValue,
+        location: formData.location,
+        isPotential: formData.isPotential
+      };
+
+      if (formData.companyId && formData.companyId !== 'none') {
+        updateData.companyId = formData.companyId;
+        updateData.company = company?.name || '';
+      } else {
+        updateData.companyId = '';
+        updateData.company = '';
+      }
+
+      await updateContact(contact.id, updateData);
 
       onOpenChange(false);
     } catch (error) {
       console.error('Error updating contact:', error);
+      alert((error as Error).message || 'Error al actualizar contacto');
     } finally {
       setIsLoading(false);
     }

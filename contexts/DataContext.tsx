@@ -382,10 +382,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [userAuthenticated, setUserAuthenticated] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserAuthenticated(true);
-        loadData();
+        await loadData(true);
       } else {
         setUserAuthenticated(false);
         setContacts([]);
@@ -400,8 +400,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const loadData = async () => {
-    if (!userAuthenticated) {
+  const loadData = async (forceLoad = false) => {
+    if (!forceLoad && !userAuthenticated) {
       setLoading(false);
       return;
     }
@@ -546,7 +546,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       Object.keys(contactData).forEach(key => {
         const value = (contactData as any)[key];
         if (value !== undefined) {
-          updates[key] = value;
+          if (key === 'companyId' && (value === 'none' || value === '')) {
+            updates[key] = '';
+            updates.company = '';
+          } else {
+            updates[key] = value;
+          }
         }
       });
 
