@@ -159,6 +159,17 @@ const convertTimestamp = (data: DocumentData): any => {
   return converted;
 };
 
+const sanitizeData = (data: any): any => {
+  const sanitized: any = {};
+  Object.keys(data).forEach(key => {
+    const value = data[key];
+    if (value !== undefined) {
+      sanitized[key] = value === null ? null : value;
+    }
+  });
+  return sanitized;
+};
+
 export const contactsService = {
   async getAll(): Promise<any[]> {
     const querySnapshot = await getDocs(collection(db, 'contacts'));
@@ -178,17 +189,13 @@ export const contactsService = {
   },
 
   async create(contact: FirestoreContact): Promise<string> {
-    const docRef = await addDoc(collection(db, 'contacts'), {
-      ...contact
-    });
+    const docRef = await addDoc(collection(db, 'contacts'), sanitizeData(contact));
     return docRef.id;
   },
 
   async update(id: string, contact: Partial<FirestoreContact>): Promise<void> {
     const docRef = doc(db, 'contacts', id);
-    await updateDoc(docRef, {
-      ...contact
-    });
+    await updateDoc(docRef, sanitizeData(contact));
   },
 
   async delete(id: string): Promise<void> {
@@ -215,17 +222,13 @@ export const companiesService = {
   },
 
   async create(company: FirestoreCompany): Promise<string> {
-    const docRef = await addDoc(collection(db, 'companies'), {
-      ...company
-    });
+    const docRef = await addDoc(collection(db, 'companies'), sanitizeData(company));
     return docRef.id;
   },
 
   async update(id: string, company: Partial<FirestoreCompany>): Promise<void> {
     const docRef = doc(db, 'companies', id);
-    await updateDoc(docRef, {
-      ...company
-    });
+    await updateDoc(docRef, sanitizeData(company));
   },
 
   async delete(id: string): Promise<void> {
@@ -253,20 +256,20 @@ export const campaignsService = {
 
   async create(campaign: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'campaigns'), {
+    const docRef = await addDoc(collection(db, 'campaigns'), sanitizeData({
       ...campaign,
       createdAt: now,
       updatedAt: now
-    });
+    }));
     return docRef.id;
   },
 
   async update(id: string, campaign: Partial<Omit<Campaign, 'id' | 'createdAt'>>): Promise<void> {
     const docRef = doc(db, 'campaigns', id);
-    await updateDoc(docRef, {
+    await updateDoc(docRef, sanitizeData({
       ...campaign,
       updatedAt: new Date().toISOString()
-    });
+    }));
   },
 
   async delete(id: string): Promise<void> {
@@ -305,20 +308,20 @@ export const notesService = {
 
   async create(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'notes'), {
+    const docRef = await addDoc(collection(db, 'notes'), sanitizeData({
       ...note,
       createdAt: now,
       updatedAt: now
-    });
+    }));
     return docRef.id;
   },
 
   async update(id: string, note: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
     const docRef = doc(db, 'notes', id);
-    await updateDoc(docRef, {
+    await updateDoc(docRef, sanitizeData({
       ...note,
       updatedAt: new Date().toISOString()
-    });
+    }));
   },
 
   async delete(id: string): Promise<void> {
@@ -336,7 +339,7 @@ export const connectionsService = {
   },
 
   async create(connection: Omit<Connection, 'id'>): Promise<string> {
-    const docRef = await addDoc(collection(db, 'connections'), connection);
+    const docRef = await addDoc(collection(db, 'connections'), sanitizeData(connection));
     return docRef.id;
   },
 
@@ -382,17 +385,13 @@ export const affiliatesService = {
   },
 
   async create(affiliate: FirestoreAffiliate): Promise<string> {
-    const docRef = await addDoc(collection(db, 'affiliates'), {
-      ...affiliate
-    });
+    const docRef = await addDoc(collection(db, 'affiliates'), sanitizeData(affiliate));
     return docRef.id;
   },
 
   async update(id: string, affiliate: Partial<FirestoreAffiliate>): Promise<void> {
     const docRef = doc(db, 'affiliates', id);
-    await updateDoc(docRef, {
-      ...affiliate
-    });
+    await updateDoc(docRef, sanitizeData(affiliate));
   },
 
   async delete(id: string): Promise<void> {
@@ -419,17 +418,13 @@ export const sponsorsService = {
   },
 
   async create(sponsor: FirestoreSponsor): Promise<string> {
-    const docRef = await addDoc(collection(db, 'sponsors'), {
-      ...sponsor
-    });
+    const docRef = await addDoc(collection(db, 'sponsors'), sanitizeData(sponsor));
     return docRef.id;
   },
 
   async update(id: string, sponsor: Partial<FirestoreSponsor>): Promise<void> {
     const docRef = doc(db, 'sponsors', id);
-    await updateDoc(docRef, {
-      ...sponsor
-    });
+    await updateDoc(docRef, sanitizeData(sponsor));
   },
 
   async delete(id: string): Promise<void> {

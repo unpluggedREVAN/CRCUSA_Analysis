@@ -496,7 +496,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       const now = new Date().toLocaleDateString('es-ES');
       const newContact = {
-        ...contactData,
+        name: contactData.name,
+        email: contactData.email,
+        phone: contactData.phone,
+        company: contactData.company || '',
+        companyId: contactData.companyId || '',
+        role: contactData.role || '',
+        status: contactData.status,
+        score: contactData.score,
+        interest: contactData.interest,
+        probability: contactData.probability,
+        origin: contactData.origin,
+        estimatedValue: contactData.estimatedValue,
+        location: contactData.location,
+        isPotential: contactData.isPotential,
+        owner: contactData.owner,
         createdAt: now,
         updatedAt: now,
         initials: generateInitials(contactData.name)
@@ -526,9 +540,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       const updates: any = {
-        ...contactData,
         updatedAt: new Date().toLocaleDateString('es-ES')
       };
+
+      Object.keys(contactData).forEach(key => {
+        const value = (contactData as any)[key];
+        if (value !== undefined) {
+          updates[key] = value;
+        }
+      });
+
       if (contactData.name) {
         updates.initials = generateInitials(contactData.name);
       }
@@ -564,7 +585,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       const now = new Date().toLocaleDateString('es-ES');
       const newCompany = {
-        ...companyData,
+        name: companyData.name,
+        tradeName: companyData.tradeName,
+        email: companyData.email,
+        phone: companyData.phone,
+        website: companyData.website || '',
+        sector: companyData.sector,
+        size: companyData.size,
+        location: companyData.location,
+        address: companyData.address,
+        description: companyData.description,
+        latitude: companyData.latitude || null,
+        longitude: companyData.longitude || null,
+        owner: companyData.owner,
         createdAt: now,
         updatedAt: now,
         initials: generateInitials(companyData.name)
