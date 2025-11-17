@@ -436,12 +436,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const initializeData = async () => {
     try {
-      const contactPromises = initialContacts.map(contact =>
-        contactsService.create(contact)
-      );
-      const companyPromises = initialCompanies.map(company =>
-        companiesService.create(company)
-      );
+      const contactPromises = initialContacts.map(contact => {
+        const { id, ...contactData } = contact;
+        return contactsService.createWithId(id, contactData as any);
+      });
+      const companyPromises = initialCompanies.map(company => {
+        const { id, ...companyData } = company;
+        return companiesService.createWithId(id, companyData as any);
+      });
 
       await Promise.all([...contactPromises, ...companyPromises]);
       await loadData();

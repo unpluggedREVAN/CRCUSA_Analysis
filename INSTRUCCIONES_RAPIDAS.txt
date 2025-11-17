@@ -1,0 +1,135 @@
+===============================================================
+       INSTRUCCIONES RAPIDAS - PRUEBAS DE INTEGRACION
+===============================================================
+
+ARCHIVO DE PRUEBAS: integrationTests.js
+
+OBJETIVO: Ejecutar 23 pruebas de integracion completas en Firestore
+
+---------------------------------------------------------------
+
+EJECUCION RAPIDA (3 metodos):
+
+1. METODO DIRECTO (recomendado):
+
+   node integrationTests.js
+
+
+2. CON SCRIPT BASH (Linux/Mac):
+
+   bash run-tests.sh
+
+   o
+
+   ./run-tests.sh
+
+
+3. CON NPM (primero agrega esto a package.json):
+
+   "test:integration": "node integrationTests.js"
+
+   Luego ejecuta:
+
+   npm run test:integration
+
+---------------------------------------------------------------
+
+REQUISITOS:
+
+- Node.js instalado (v16+)
+- Firebase instalado: npm install firebase
+- Conexion a internet
+
+---------------------------------------------------------------
+
+LAS 23 PRUEBAS INCLUYEN:
+
++ CONTACTOS (4 pruebas)
+  - Crear
+  - Listar
+  - Obtener por ID
+  - Actualizar
+
++ EMPRESAS (4 pruebas)
+  - Crear
+  - Listar
+  - Obtener por ID
+  - Actualizar
+
++ CAMPANAS (4 pruebas)
+  - Crear
+  - Listar
+  - Obtener por ID
+  - Actualizar destinatario
+
++ NOTAS (4 pruebas)
+  - Crear nota 1
+  - Crear nota 2
+  - Listar
+  - Actualizar posicion
+
++ CONEXIONES (3 pruebas)
+  - Crear conexion
+  - Listar
+  - Buscar por origen
+
++ AFILIADOS (3 pruebas)
+  - Crear
+  - Listar
+  - Actualizar metricas
+
++ PATROCINADORES (1 prueba)
+  - Crear
+
+---------------------------------------------------------------
+
+RESULTADO ESPERADO:
+
+Si todo funciona correctamente, veras:
+
+   [OK] 23 pruebas en verde
+   Total: 23
+   Exitosas: 23
+   Fallidas: 0
+   Tasa de exito: 100.00%
+
+---------------------------------------------------------------
+
+LIMPIEZA AUTOMATICA:
+
+El script automaticamente:
+- Crea datos de prueba
+- Ejecuta las validaciones
+- Elimina todos los datos creados
+- Muestra resumen completo
+
+NO SE DEJA BASURA EN LA BASE DE DATOS!
+
+---------------------------------------------------------------
+
+SOLUCION DE PROBLEMAS:
+
+Error de modulos:
+   npm install firebase
+
+Error de permisos (bash):
+   chmod +x run-tests.sh
+
+Error de conexion:
+   Verifica tu internet y credenciales de Firebase
+
+---------------------------------------------------------------
+
+DOCUMENTACION COMPLETA:
+
+Lee PRUEBAS_INTEGRACION.md para informacion detallada.
+
+---------------------------------------------------------------
+
+LISTO! Ahora solo ejecuta:
+
+   node integrationTests.js
+
+Y observa como se ejecutan las 23 pruebas automaticamente.
+
+===============================================================

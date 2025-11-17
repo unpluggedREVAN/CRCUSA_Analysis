@@ -53,9 +53,14 @@ export function CompanyDetailPage({ companyId }: CompanyDetailPageProps) {
     );
   }
 
-  const handleDelete = () => {
-    deleteCompany(company.id);
-    router.push('/companies');
+  const handleDelete = async () => {
+    try {
+      await deleteCompany(company.id);
+      router.push('/companies');
+    } catch (error) {
+      console.error('Error deleting company:', error);
+      alert('Error al eliminar empresa');
+    }
   };
 
   return (

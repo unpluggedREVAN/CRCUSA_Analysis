@@ -4,6 +4,7 @@ import {
   collection,
   doc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   getDocs,
@@ -193,6 +194,12 @@ export const contactsService = {
     return docRef.id;
   },
 
+  async createWithId(id: string, contact: FirestoreContact): Promise<string> {
+    const docRef = doc(db, 'contacts', id);
+    await setDoc(docRef, sanitizeData(contact));
+    return id;
+  },
+
   async update(id: string, contact: Partial<FirestoreContact>): Promise<void> {
     const docRef = doc(db, 'contacts', id);
     await updateDoc(docRef, sanitizeData(contact));
@@ -224,6 +231,12 @@ export const companiesService = {
   async create(company: FirestoreCompany): Promise<string> {
     const docRef = await addDoc(collection(db, 'companies'), sanitizeData(company));
     return docRef.id;
+  },
+
+  async createWithId(id: string, company: FirestoreCompany): Promise<string> {
+    const docRef = doc(db, 'companies', id);
+    await setDoc(docRef, sanitizeData(company));
+    return id;
   },
 
   async update(id: string, company: Partial<FirestoreCompany>): Promise<void> {

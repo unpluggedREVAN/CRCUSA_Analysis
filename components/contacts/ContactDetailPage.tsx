@@ -59,9 +59,14 @@ export function ContactDetailPage({ contactId }: ContactDetailPageProps) {
     updateContact(contact.id, { isPotential: !contact.isPotential });
   };
 
-  const handleDelete = () => {
-    deleteContact(contact.id);
-    router.push('/contacts');
+  const handleDelete = async () => {
+    try {
+      await deleteContact(contact.id);
+      router.push('/contacts');
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      alert('Error al eliminar contacto');
+    }
   };
 
   const handleConvertToAffiliate = async () => {
